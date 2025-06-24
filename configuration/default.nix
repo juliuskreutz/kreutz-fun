@@ -9,8 +9,6 @@
   ];
   nixpkgs.config.allowUnfree = true;
 
-  virtualisation.docker.enable = true;
-
   boot.loader.grub = {
     efiSupport = true;
     efiInstallAsRemovable = true;
@@ -22,18 +20,9 @@
   };
   users.users.root.openssh.authorizedKeys.keys = [
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICVYTxSfsoGYBKzuSc9Q4Fc8zuCtumj3Nw6ZxwYDBUaS julius"
-    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICPk9/NeWgM6Z7mJTLkmzBwD8bDPbddrdZ06Oril3597 bikerpenguin67"
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOsDtcDaujekE00RIsccA/lhse1vzHuJxO5TYp+G9X4M gitlab"
   ];
   services.fail2ban.enable = true;
-
-  services.postgresql = {
-    enable = true;
-    package = pkgs.postgresql_17;
-  };
-
-  services.caddy = {
-    enable = true;
-  };
 
   networking.nftables.enable = true;
   networking.firewall = {
@@ -46,11 +35,39 @@
   };
 
   environment.systemPackages = with pkgs; [
-    gitMinimal
     htop
     curl
     vim
   ];
+
+  services.caddy = {
+    enable = true;
+    virtualHosts."prod.kreutz.fun".extraConfig = ''
+      reverse_proxy localhost:3000
+    '';
+    virtualHosts."dev.kreutz.fun".extraConfig = ''
+      reverse_proxy localhost:3001
+    '';
+  };
+
+  systemd.services.rezepte-ui-prod = {
+    wantedBy = [ "multi-user.target" ];
+    serviceConfig = {
+      WorkingDirectory = "/root/rezepte-ui-prod";
+      ExecStart = "${pkgs.bun}/bin/bun run start";
+    };
+  };
+
+  systemd.services.rezepte-ui-dev = {
+    wantedBy = [ "multi-user.target" ];
+    environment = {
+      PORT = "3001";
+    };
+    serviceConfig = {
+      WorkingDirectory = "/root/rezepte-ui-dev";
+      ExecStart = "${pkgs.bun}/bin/bun run start";
+    };
+  };
 
   system.stateVersion = "24.11";
 }
